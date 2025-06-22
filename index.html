@@ -1,47 +1,84 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
   <title>Dr. Neeldip Barman</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="style.css" />
+  <style>
+    body {
+      font-family: 'Georgia', serif;
+      margin: 0;
+      background: #f9f9f9;
+      color: #333;
+    }
+    header {
+      background: #004477;
+      color: white;
+      padding: 1rem;
+      text-align: center;
+    }
+    nav {
+      text-align: center;
+      background: #eee;
+      padding: 1rem;
+    }
+    nav a {
+      margin: 0 15px;
+      text-decoration: none;
+      font-weight: bold;
+      color: #004477;
+    }
+    nav a:hover {
+      text-decoration: underline;
+    }
+    .container {
+      max-width: 900px;
+      margin: 2rem auto;
+      padding: 0 1rem;
+    }
+    .profile-pic {
+      width: 150px;
+      float: right;
+      margin-left: 20px;
+      border-radius: 8px;
+    }
+    section {
+      margin-top: 2rem;
+    }
+    h1, h2 {
+      color: #004477;
+    }
+  </style>
 </head>
 <body>
-  <div class="container">
-    <aside class="sidebar">
-      <img src="assets/Picture1.jpg" alt="Dr. Neeldip Barman" class="profile-pic"/>
-      <h1>Dr. Neeldip Barman</h1>
-      <p><strong>Postdoctoral Researcher</strong><br>IIT Bombay</p>
-      <hr/>
-      <p><a href="mailto:neeldipbarman@gmail.com">📧 Email</a></p>
-      <p><a href="https://github.com/Neeldip" target="_blank">🐙 GitHub</a></p>
-      <p><a href="https://scholar.google.com/citations?user=iIn1ThMAAAAJ" target="_blank">📖 Google Scholar</a></p>
-      <p><a href="https://www.linkedin.com/in/neeldip-barman-225a7718b/" target="_blank">🔗 LinkedIn</a></p>
-    </aside>
 
-    <main class="content">
-      <nav class="navbar">
-        <a href="index.html">Home</a>
-        <a href="research.html">Research</a>
-        <a href="assets/CV.pdf" target="_blank">CV</a>
-      </nav>
+<header>
+  <h1>Dr. Neeldip Barman</h1>
+  <p>Postdoctoral Researcher, IIT Bombay</p>
+</header>
 
-      <section>
-        <h2>About Me</h2>
-        <p>I am currently a postdoctoral researcher at IIT Bombay. My work focuses on airshed-based air quality modeling using InMAP and WRF-Chem...</p>
+<nav>
+  <a href="index.html">Home</a>
+  <a href="research.html">Research</a>
+  <a href="publications.html">Publications</a>
+  <a href="cv.html">CV</a>
+</nav>
 
-        <h2>Education</h2>
-        <ul>
-          <li>Postdoc – IIT Bombay (2023–present)</li>
-          <li>PhD – IIT Guwahati (2018–2024)</li>
-          <li>M.Tech – IIT Guwahati (2016–2018)</li>
-          <li>BE – Gauhati University (2011–2015)</li>
-        </ul>
+<div class="container">
+  <img src="assets/Picture1.jpg" alt="Dr. Neeldip Barman" class="profile-pic"/>
+  <section>
+    <h2>Welcome</h2>
+    <p>I am currently a Postdoctoral Researcher at IIT Bombay. My research interests lie in the domain of atmospheric science, focusing on airshed-based air quality management using WRF-Chem, InMAP, and related atmospheric models. I also work on boundary layer meteorology, emission transport, and the influence of aerosol–climate interactions across the Indo-Gangetic Plains and North-East India.</p>
+  </section>
 
-        <h2>Interests</h2>
-        <p>Air pollution modeling, climate impacts, reduced complexity models, boundary layer meteorology, atmospheric chemistry.</p>
-      </section>
-    </main>
-  </div>
+  <section>
+    <h2>Contact</h2>
+    <p>Email: <a href="mailto:neeldipbarman@gmail.com">neeldipbarman@gmail.com</a></p>
+    <p>GitHub: <a href="https://github.com/Neeldip" target="_blank">Neeldip</a></p>
+    <p>Google Scholar: <a href="https://scholar.google.com/citations?user=iIn1ThMAAAAJ" target="_blank">Profile</a></p>
+    <p>LinkedIn: <a href="https://www.linkedin.com/in/neeldip-barman-225a7718b/" target="_blank">Profile</a></p>
+  </section>
+</div>
+
 </body>
 </html>
