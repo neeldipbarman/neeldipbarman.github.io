@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Research findings in motion</title>
+<link rel="stylesheet" href="assets/fonts.css">
+<style>
+  html,body{margin:0;height:100%;background:#F5F3EE;color:#191B1F;font-family:'IBM Plex Sans',sans-serif;-webkit-font-smoothing:antialiased}
+  body{display:flex;flex-direction:column}
+  a{color:#2C7A73;text-decoration:none} a:hover{text-decoration:underline;text-underline-offset:3px}
+  #tabs{display:flex;flex-wrap:wrap;gap:0;border-bottom:1px solid rgba(25,27,31,.14)}
+  #tabs button{flex:1 1 170px;background:none;border:0;border-right:1px solid rgba(25,27,31,.10);color:rgba(25,27,31,.62);font:inherit;font-size:13.5px;line-height:1.35;text-align:left;padding:14px 16px 13px;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px}
+  #tabs button:last-child{border-right:0}
+  #tabs button:hover{color:#191B1F;background:rgba(25,27,31,.04)}
+  #tabs button[aria-selected="true"]{color:#191B1F;border-bottom-color:#C7802F;background:rgba(25,27,31,.05)}
+  #tabs .y{display:block;font-family:'IBM Plex Mono',monospace;font-size:11.5px;letter-spacing:.1em;color:#C7802F;margin-bottom:3px}
+  #head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:8px 24px;padding:18px 22px 4px}
+  #meta{font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:rgba(25,27,31,.55);margin-bottom:6px}
+  #title{font-family:'Source Serif 4',serif;font-weight:600;font-size:clamp(18px,2.1vw,23px);line-height:1.25;margin:0;max-width:62ch;text-wrap:pretty}
+  #doi{font-family:'IBM Plex Mono',monospace;font-size:12.5px;white-space:nowrap}
+  #stage{flex:1 1 auto;min-height:0;width:100%;display:block}
+  #foot{display:flex;align-items:flex-start;gap:18px;padding:10px 22px 18px;border-top:1px solid rgba(25,27,31,.10)}
+  #cap{flex:1;font-size:15.5px;line-height:1.55;color:#191B1F;min-height:3.1em;text-wrap:pretty;transition:opacity .35s}
+  #steps{display:flex;gap:6px;margin-top:8px}
+  #steps i{display:block;width:26px;height:3px;background:rgba(25,27,31,.18)}
+  #steps i.on{background:#C7802F}
+  #ctrl{display:flex;gap:6px}
+  #ctrl button{background:none;border:1px solid rgba(25,27,31,.24);color:#191B1F;font-family:'IBM Plex Mono',monospace;font-size:12px;padding:8px 12px;cursor:pointer;white-space:nowrap}
+  #ctrl button:hover{border-color:#191B1F}
+  svg text{font-family:'IBM Plex Sans',sans-serif;fill:#191B1F}
+  svg .m{font-family:'IBM Plex Mono',monospace;letter-spacing:.06em}
+  svg .s{font-family:'Source Serif 4',serif}
+  svg .d{fill:rgba(25,27,31,.6)}
+  /* Phones: one scrolling row of tabs, controls under the caption, and a
+     guaranteed height for the animation itself. */
+  @media (max-width:600px){
+    #tabs{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}
+    #tabs::-webkit-scrollbar{display:none}
+    #tabs button{flex:0 0 auto;padding:10px 12px 9px;font-size:12.5px;white-space:nowrap}
+    #head{padding:12px 14px 2px}
+    #title{font-size:16px}
+    #stage{min-height:220px}
+    #foot{flex-direction:column;gap:10px;padding:8px 14px 14px}
+    #cap{font-size:14px;min-height:0}
+  }
+</style>
+</head>
+<body>
+<div id="tabs" role="tablist"></div>
+<div id="head">
+  <div><div id="meta"></div><h3 id="title"></h3></div>
+  <a id="doi" target="_blank" rel="noopener">Read paper ↗</a>
+</div>
+<svg id="stage" viewBox="0 0 1000 500" preserveAspectRatio="xMidYMid meet" role="img"></svg>
+<div id="foot">
+  <div style="flex:1"><div id="cap"></div><div id="steps"></div></div>
+  <div id="ctrl"><button id="pp">Pause</button><button id="rp">Replay</button></div>
+</div>
+<script src="./india-geo.js"></script>
+<script>
+(function(){
+"use strict";
+var NS="http://www.w3.org/2000/svg";
+var CLOUD="#C3C9D0",PAPER="#191B1F",FAINT="rgba(25,27,31,0.14)",CELL="#E6E3DC",TEAL="#2C7A73",AMBER="#C7802F",RAIN="#3F78B0",GROUND="#DAD6CC";
+function el(tag,a,p){var e=document.createElementNS(NS,tag);for(var k in a)e.setAttribute(k,a[k]);if(p)p.appendChild(e);return e;}
+function txt(p,x,y,s,a){var o={x:x,y:y};for(var k in a)o[k]=a[k];var e=el("text",o,p);e.textContent=s;return e;}
+function clamp(v,a,b){a=a==null?0:a;b=b==null?1:b;return v<a?a:v>b?b:v;}
+function ease(p){return p<.5?2*p*p:1-Math.pow(-2*p+2,2)/2;}
+function seg(t,a,b){return ease(clamp((t-a)/(b-a)));}
+function rnd(i){var x=Math.sin(i*127.1+311.7)*43758.5453;return x-Math.floor(x);}
+function op(e,v){e.setAttribute("opacity",v.toFixed(3));}
+function fmt(n){return Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g,",");}
+
+var V=[
+
+/* ---------- npj Clean Air 2026 · targeted airsheds ---------- */
+{tab:"Targeted airsheds",year:"2026",journal:"npj Clean Air · 2026",
+ title:"Mitigation strategies for critically polluted PM2.5 regions using spatially targeted airsheds: application to the Indo‑Gangetic Plain, India",
+ doi:"https://doi.org/10.1038/s44407-026-00109-x",D:16,
+ steps:[[0,"Four critically polluted regions in the Indo‑Gangetic Plain, home to 234 million people, have annual PM2.5 between 79 and 98 µg m⁻³. Emissions from within the IGP cause 67–88% of it."],
+        [4.4,"Each region gets an air pollution control area (APCA): the smallest set of districts whose emissions, removed one at a time, bring PM2.5 down to 35 µg m⁻³. On average an APCA covers only 36% of its states' area."],
+        [10.2,"The dominant sector is different in every APCA. Treating the IGP as one airshed misses this: controlling domestic sources alone would leave over 75% of PM2.5 in Regions 1, 2 and 4."]],
+ build:function(g){
+  var SEC={ag:["Agriculture","#6FA86A"],tr:["Transport","#D9695F"],dom:["Domestic","#E2C25C"],msme:["MSME & bricks","#C77DC9"],en:["Energy","#7F8FD9"],ind:["Heavy industry","#B48AE0"]};
+  var R=[{n:"Region 1",s:"Punjab",p:"11 M people",i:79,k:13,a:65,sec:["ag"]},
+         {n:"Region 2",s:"Delhi · Haryana · UP",p:"50 M people",i:87,k:29,a:18,sec:["tr","dom"]},
+         {n:"Region 3",s:"Bihar · UP",p:"100 M people",i:81,k:23,a:19,sec:["dom"]},
+         {n:"Region 4",s:"West Bengal · Jharkhand",p:"73 M people",i:98,k:16,a:40,sec:["msme","en","ind"]}];
+  function Y(v){return 380-v*2.18;}
+  txt(g,60,52,"ANNUAL PM2.5 · µg m⁻³",{class:"m d","font-size":13});
+  var lgA=el("g",{opacity:0},g),lgT=el("g",{opacity:0},g);
+  el("line",{x1:480,x2:504,y1:48,y2:48,stroke:AMBER,"stroke-width":2,"stroke-dasharray":"5 4"},lgA);
+  txt(lgA,512,52,"> 75 critically polluted",{class:"m","font-size":12.5,fill:AMBER});
+  el("line",{x1:790,x2:814,y1:48,y2:48,stroke:TEAL,"stroke-width":2,"stroke-dasharray":"5 4"},lgT);
+  txt(lgT,822,52,"35 target",{class:"m","font-size":12.5,fill:TEAL});
+  [[0,"d"],[35,TEAL],[75,AMBER],[100,"d"]].forEach(function(q){var o={class:"m","font-size":12.5,"text-anchor":"end"};if(q[1]==="d")o.class="m d";else o.fill=q[1];txt(g,90,Y(q[0])+4,String(q[0]),o);});
+  el("line",{x1:96,x2:950,y1:Y(0),y2:Y(0),stroke:"rgba(25,27,31,0.35)"},g);
+  var thr=el("line",{x1:96,x2:950,y1:Y(75),y2:Y(75),stroke:AMBER,"stroke-width":1.5,"stroke-dasharray":"6 5","stroke-opacity":.7,opacity:0},g);
+  var tgt=el("line",{x1:96,x2:950,y1:Y(35),y2:Y(35),stroke:TEAL,"stroke-width":1.5,"stroke-dasharray":"6 5","stroke-opacity":.8,opacity:0},g);
+  var C=R.map(function(r,c){
+   var x0=110+c*218,hd=el("g",{opacity:0},g);
+   txt(hd,x0,92,r.n,{class:"s","font-size":19,"font-weight":600});
+   txt(hd,x0,111,r.s,{class:"m d","font-size":12});
+   txt(hd,x0,127,r.p,{class:"m d","font-size":12});
+   var stem=el("rect",{x:x0+7,y:Y(0),width:6,height:0,fill:AMBER,"fill-opacity":.45},g);
+   var dot=el("circle",{cx:x0+10,cy:Y(0),r:6,fill:AMBER,opacity:0},g);
+   var val=txt(g,x0+22,Y(r.i)-8,"0",{class:"s","font-size":20,"font-weight":700,fill:AMBER,opacity:0});
+   var D2=[];for(var j=1;j<=r.k;j++){var u=j/r.k,v=35+(r.i-35)*Math.pow(1-u,1.5);D2.push({e:el("circle",{cx:x0+10+u*160,cy:Y(v),r:3.2,fill:TEAL,opacity:0},g),s:4.6+u*4.6});}
+   var cnt=txt(g,x0+170,Y(35)+24,"0 districts",{class:"s","font-size":18,"font-weight":600,fill:TEAL,"text-anchor":"end",opacity:0});
+   var ar=txt(g,x0+170,Y(35)+42,"APCA · "+r.a+"% of state area",{class:"m d","font-size":12,"text-anchor":"end",opacity:0});
+   var ch=r.sec.map(function(key,m){var cg=el("g",{opacity:0},g),y=404+m*24;el("rect",{x:x0,y:y-11,width:12,height:12,fill:SEC[key][1]},cg);txt(cg,x0+20,y,SEC[key][0],{"font-size":14.5});return cg;});
+   return{r:r,c:c,hd:hd,stem:stem,dot:dot,val:val,D:D2,cnt:cnt,ar:ar,ch:ch};
+  });
+  return function(t){
+   op(thr,seg(t,2.4,3.2));op(lgA,seg(t,2.4,3.2));op(tgt,seg(t,4.2,4.8));op(lgT,seg(t,4.2,4.8));
+   C.forEach(function(o){
+    var a=.3+o.c*.5,p=seg(t,a,a+1.3),h=o.r.i*2.18*p;
+    op(o.hd,seg(t,a-.3,a+.3));
+    o.stem.setAttribute("y",(Y(0)-h).toFixed(1));o.stem.setAttribute("height",h.toFixed(1));
+    o.dot.setAttribute("cy",(Y(0)-h).toFixed(1));op(o.dot,seg(t,a,a+.3));
+    o.val.textContent=Math.round(o.r.i*p);op(o.val,seg(t,a+.2,a+.6));
+    var n=0;o.D.forEach(function(d){if(t>=d.s){n++;op(d.e,clamp((t-d.s)*5)*.95);}else op(d.e,0);});
+    o.cnt.textContent=n+(n===1?" district":" districts");op(o.cnt,seg(t,4.5,4.9));
+    op(o.ar,seg(t,9.4+o.c*.15,10));
+    o.ch.forEach(function(cg,m){var s=10.4+o.c*.6+m*.2;op(cg,seg(t,s,s+.5));});
+   });
+  };
+ }},
+
+/* ---------- DOAO 2024 · PBL schemes ---------- */
+{tab:"Boundary‑layer schemes",year:"2024",journal:"Dynamics of Atmospheres and Oceans · 2024",
+ title:"Impact of boundary layer parameterizations on simulated seasonal meteorology over North‑East India",
+ doi:"https://doi.org/10.1016/j.dynatmoce.2024.101505",D:14,
+ steps:[[0,"WRF runs tested six boundary‑layer schemes against observations for the pre‑monsoon (April) and monsoon (July)."],
+        [7.4,"Different schemes win different variables — but the scale‑aware Shin‑Hong (HONG) scheme ranks best across both seasons."],
+        [10,"Process analysis explains the misses: QNSE spends the most surface energy on evaporation; MYNN3 mixes least and over‑predicts rain."]],
+ build:function(g){
+  txt(g,60,64,"6 PBL SCHEMES · APRIL + JULY · NORTH‑EAST INDIA",{class:"m d","font-size":13});
+  var rows=["ACM2","YSU","HONG","QNSE","MYJ","MYNN3"],cols=["T2","RH2","Wind","Rain · Apr","Rain · Jul","Overall"];
+  var W=[["ACM2"],["MYNN3"],["MYNN3","HONG"],["HONG"],["MYJ"],["HONG"]];
+  function RY(i){return 150+i*46+(i>2?14:0);}
+  var x0=260,cw=100;
+  var heads=cols.map(function(c,j){return txt(g,x0+j*cw+cw/2,122,c,{class:"m","font-size":13,"text-anchor":"middle",opacity:0});});
+  var hl=el("rect",{x:56,y:RY(2)-29,width:816,height:46,fill:"none",stroke:AMBER,"stroke-width":2,opacity:0},g);
+  rows.forEach(function(r,i){txt(g,70,RY(i)+3,r,{class:"s","font-size":21,"font-weight":600});});
+  txt(g,160,RY(0)+2,"non‑local",{class:"m d","font-size":12.5});txt(g,160,RY(3)+2,"local",{class:"m d","font-size":12.5});
+  var cells=[];
+  rows.forEach(function(r,i){cols.forEach(function(c,j){
+   var x=x0+j*cw+6,y=RY(i)-20,win=W[j].indexOf(r)>=0;
+   var bg=el("rect",{x:x,y:y,width:cw-12,height:32,fill:CELL,opacity:0},g);
+   var fg=win?el("rect",{x:x,y:y,width:cw-12,height:32,fill:j===5?AMBER:TEAL,opacity:0},g):null;
+   var dot=win?el("circle",{cx:x+(cw-12)/2,cy:y+16,r:5,fill:"#191B1F",opacity:0},g):null;
+   cells.push({bg:bg,fg:fg,dot:dot,j:j});
+  });});
+  var tq=txt(g,880,RY(3)+3,"coldest",{class:"m","font-size":13,fill:AMBER,opacity:0});
+  var tm=txt(g,880,RY(5)+3,"wettest",{class:"m","font-size":13,fill:AMBER,opacity:0});
+  var n1=txt(g,70,450,"QNSE — most surface evaporation → coolest skin and 2 m temperature",{"font-size":15,class:"d",opacity:0});
+  var n2=txt(g,70,476,"MYNN3 — weakest mixing → moistest boundary layer, most cloud, rain overestimated",{"font-size":15,class:"d",opacity:0});
+  return function(t){
+   cells.forEach(function(c){var a=.8+c.j*1.05;op(c.bg,seg(t,0,.8));if(c.fg){op(c.fg,seg(t,a,a+.7));op(c.dot,seg(t,a+.3,a+.9));}});
+   heads.forEach(function(h,j){op(h,seg(t,.4+j*1.05,.9+j*1.05));});
+   op(hl,seg(t,7.4,8.4));op(tq,seg(t,10,10.8));op(n1,seg(t,10.2,11.2));op(tm,seg(t,11,11.8));op(n2,seg(t,11.2,12.2));
+  };
+ }},
+
+/* ---------- ACP 2023 · transported aerosols ---------- */
+{tab:"Transported aerosols & rain",year:"2023",journal:"Atmospheric Chemistry and Physics · 2023",
+ title:"Transported aerosols regulate the pre‑monsoon rainfall over north‑east India: a WRF‑Chem modelling study",
+ doi:"https://doi.org/10.5194/acp-23-6197-2023",D:17,
+ steps:[[0,"Emission on/off experiments in WRF‑Chem separate aerosols made inside North‑East India from those carried in along the Himalayan foothills during the pre‑monsoon."],
+        [5,"Transported aerosols — mainly from the Indo‑Gangetic Plain — make up 94% of the PM10 in the region's atmosphere and 64% at the surface."],
+        [10,"Arriving aerosols seed more, smaller cloud droplets: this indirect effect dominates and suppresses the North‑East's pre‑monsoon rain — so IGP controls pay off downwind."]],
+ build:function(g){
+  var GEO=window.INDIA_GEO||{},S=32,K=Math.cos(25*Math.PI/180);
+  function P(lon,lat){return[20+(lon-74)*K*S,50+(32.5-lat)*S];}
+  function ring(r){var o="";for(var i=0;i<r.length;i++){var p=P(r[i][0],r[i][1]);o+=(i?"L":"M")+p[0].toFixed(1)+","+p[1].toFixed(1);}return o+"Z";}
+  function line(r){var o="";for(var i=0;i<r.length;i++){var p=P(r[i][0],r[i][1]);o+=(i?"L":"M")+p[0].toFixed(1)+","+p[1].toFixed(1);}return o;}
+  var bd="";(GEO.boundary||[]).forEach(function(poly){poly.forEach(function(r){bd+=ring(r);});});
+  var uid="c"+Math.floor(Math.random()*1e6),defs=el("defs",{},g);
+  el("rect",{x:0,y:0,width:714,height:500},el("clipPath",{id:uid+"m"},defs));
+  el("path",{d:bd},el("clipPath",{id:uid+"i"},defs));
+  var D=[[88.05,27.35],[88.7,26.45],[89.1,25.4]];
+  var IGP=[[73.8,32.6],[75.5,32.3],[76.5,31.3],[77.6,30.4],[78.6,29.9],[80.1,28.9],[81.5,28.2],[83.3,27.4],[84.6,27.3],[86,26.7]].concat(D).concat([[88.9,24.2],[88.6,23],[88.3,21.4],[87.2,21.4],[86.9,22.6],[86,23.6],[84.5,24.5],[83,24.6],[81.5,24.9],[80,25.2],[78.5,25.6],[77.3,26.3],[76,27.3],[74.8,28.5],[73.6,29.5],[72.6,30.3]]);
+  var NE=D.concat([[90,24.4],[92.2,21.2],[98,21.2],[98,29.8],[92,29.8],[88.6,28.6],[88,28.2]]);
+  var M=el("g",{"clip-path":"url(#"+uid+"m)"},g);
+  el("path",{d:bd,fill:"#E9E6DF"},M);
+  var st=el("g",{fill:"none",stroke:"rgba(25,27,31,0.08)","stroke-width":.7},M);
+  (GEO.states||[]).forEach(function(r){el("path",{d:line(r)},st);});
+  var R=el("g",{"clip-path":"url(#"+uid+"i)"},M);
+  el("path",{d:ring(IGP),fill:AMBER,"fill-opacity":.16,stroke:AMBER,"stroke-width":2.4,"stroke-opacity":.9},R);
+  el("path",{d:ring(NE),fill:TEAL,"fill-opacity":.16,stroke:TEAL,"stroke-width":2.4,"stroke-opacity":.9},R);
+  el("path",{d:bd,fill:"none",stroke:"rgba(25,27,31,0.45)","stroke-width":1},M);
+  var l1=P(79.8,26.4),l2=P(93.9,23.0),l3=P(84.2,28.9);
+  txt(g,l1[0],l1[1],"INDO‑GANGETIC PLAIN",{class:"m","font-size":13,fill:AMBER,"text-anchor":"middle"});
+  txt(g,l2[0],l2[1],"NORTH‑EAST",{class:"m","font-size":13,fill:TEAL,"text-anchor":"middle"});
+  txt(g,l2[0],l2[1]+17,"INDIA",{class:"m","font-size":13,fill:TEAL,"text-anchor":"middle"});
+  txt(g,l3[0],l3[1],"westerlies along the foothills →",{class:"m d","font-size":13,"text-anchor":"middle"});
+  function inside(pt,poly){var x=pt[0],y=pt[1],c=false;for(var i=0,j=poly.length-1;i<poly.length;j=i++){var xi=poly[i][0],yi=poly[i][1],xj=poly[j][0],yj=poly[j][1];if((yi>y)!==(yj>y)&&x<(xj-xi)*(y-yi)/(yj-yi)+xi)c=!c;}return c;}
+  var src=[],k=0;while(src.length<90&&k<5000){var q=[75+rnd(k)*13,23.6+rnd(k+9000)*7.5];if(inside(q,IGP)&&q[1]<29.5)src.push(P(q[0],q[1]));k++;}
+  var dst=[];k=0;while(dst.length<90&&k<5000){var w=[90.3+rnd(k+20000)*5.4,25.5+rnd(k+30000)*2];if(inside(w,NE))dst.push(P(w[0],w[1]));k++;}
+  var cor=P(88.5,26.9),N=Math.min(src.length,dst.length),Q=[];
+  for(var i=0;i<N;i++)Q.push({e:el("circle",{r:2.8,fill:AMBER,opacity:0},g),s:.3+(i/N)*8,a:src[i],b:dst[i],i:i});
+  var L=[];for(var j=0;j<6;j++){var lp=P(90.8+rnd(j+300)*4.6,25.7+rnd(j+330)*1.6);L.push({e:el("circle",{r:3.2,fill:TEAL,opacity:0},g),s:.8+j*1.2,x:lp[0],y:lp[1],i:j});}
+  var cc=P(93.3,27.9),CL=el("g",{transform:"translate("+cc[0].toFixed(1)+","+cc[1].toFixed(1)+") scale(1.15)"},g),cF=[];
+  [[-58,6,30,16],[-24,-6,34,21],[14,-2,32,18],[48,7,28,15],[-6,12,70,13]].forEach(function(e){cF.push(el("ellipse",{cx:e[0],cy:e[1],rx:e[2],ry:e[3],fill:CLOUD,"fill-opacity":.9},CL));});
+  var RN=[],rTop=cc[1]+22,rBot=P(0,25.4)[1];
+  for(var r=0;r<28;r++)RN.push(el("line",{x1:cc[0]-78+r*5.8,x2:cc[0]-78+r*5.8,y1:0,y2:0,stroke:RAIN,"stroke-width":1.8,"stroke-linecap":"round"},g));
+  var sup=el("g",{opacity:0},g);
+  txt(sup,cc[0]+92,cc[1]-56,"rain suppressed",{class:"s","font-size":19,"font-weight":600,fill:RAIN,"text-anchor":"end"});
+  txt(sup,cc[0]+92,cc[1]-38,"more, smaller droplets",{class:"m d","font-size":12.5,"text-anchor":"end"});
+  var C=el("g",{},g),cx=736;
+  el("circle",{cx:cx+6,cy:72,r:5,fill:AMBER},C);txt(C,cx+20,77,"transported into the NE",{"font-size":15,class:"d"});
+  el("circle",{cx:cx+6,cy:98,r:5,fill:TEAL},C);txt(C,cx+20,103,"emitted within the NE",{"font-size":15,class:"d"});
+  function bar(y,label,pct,a,b2){
+   var gg=el("g",{opacity:0},g);
+   txt(gg,cx,y-10,label,{"font-size":15,class:"d"});
+   el("rect",{x:cx,y:y,width:240,height:20,fill:TEAL,"fill-opacity":.35},gg);
+   var f=el("rect",{x:cx,y:y,width:0,height:20,fill:AMBER},gg);
+   var tv=txt(gg,cx+240,y-10,"0%",{class:"s","font-size":20,"font-weight":700,fill:AMBER,"text-anchor":"end"});
+   return function(t){op(gg,seg(t,a-.6,a));var p=seg(t,a,b2);f.setAttribute("width",240*pct/100*p);tv.textContent=Math.round(pct*p)+"%";};
+  }
+  var b1=bar(168,"Column PM10",93.98,5.4,7.4),b2=bar(232,"Near‑surface PM10",64.18,6.8,8.8);
+  var msg=el("g",{opacity:0},g);
+  ["Controlling IGP","emissions eases","pollution and rain","suppression downwind."].forEach(function(s2,n){txt(msg,cx,330+n*28,s2,{class:"s","font-size":22,"font-weight":600});});
+  return function(t){
+   Q.forEach(function(q){if(t<q.s){op(q.e,0);return;}var p=clamp((t-q.s)/2.6),e=ease(p),u=1-e,x=u*u*q.a[0]+2*u*e*cor[0]+e*e*q.b[0],y=u*u*q.a[1]+2*u*e*cor[1]+e*e*q.b[1];if(p>=1){x+=Math.sin(t*1.2+q.i)*2.5;y+=Math.cos(t*1.1+q.i)*2;}q.e.setAttribute("cx",x.toFixed(1));q.e.setAttribute("cy",y.toFixed(1));op(q.e,clamp((t-q.s)*4)*.9);});
+   L.forEach(function(q){q.e.setAttribute("cx",(q.x+Math.sin(t*1.3+q.i)*2.5).toFixed(1));q.e.setAttribute("cy",q.y);op(q.e,seg(t,q.s,q.s+.6));});
+   var sp=seg(t,10,13.5),n=Math.round(28-21*sp),len=rBot-rTop;
+   RN.forEach(function(l,m){if((m*11)%28>=n){op(l,0);return;}var y=rTop+((t*170+rnd(m+77)*400)%len);l.setAttribute("y1",y.toFixed(1));l.setAttribute("y2",Math.min(y+11,rBot).toFixed(1));op(l,.85);});
+   cF.forEach(function(f){f.setAttribute("fill",sp>0?"rgb("+Math.round(195-60*sp)+","+Math.round(201-58*sp)+","+Math.round(208-56*sp)+")":CLOUD);});
+   op(sup,seg(t,11,12.2));b1(t);b2(t);op(msg,seg(t,13.4,14.6));
+  };
+ }},
+
+/* ---------- AR 2022 · pre-monsoon rainfall mechanisms ---------- */
+{tab:"Aerosols & pre‑monsoon rain",year:"2022",journal:"Atmospheric Research · 2022",
+ title:"Aerosol influence on the pre‑monsoon rainfall mechanisms over North‑East India: A WRF‑Chem study",
+ doi:"https://doi.org/10.1016/j.atmosres.2021.106002",D:16,
+ steps:[[0,"Absorbing aerosols heat the pre‑monsoon atmosphere over North‑East India, building an elevated warm layer."],
+        [4,"Moisture from the Bay of Bengal is trapped beneath it — more cloud and rain over low terrain, less over the high terrain above. Overall, suppression lasts longer than enhancement."],
+        [10,"Black carbon adds a semi‑direct effect, burning off clouds at 1–2 km: light rain declines while heavy rain intensifies."]],
+ build:function(g){
+  function Y(z){return 440-z*72;}
+  function zT(x){var u=clamp((x-460)/480);return .08+2.1*u*u*(3-2*u);}
+  [0,1,2,3,4].forEach(function(z){txt(g,64,Y(z)+5,z+" km",{class:"m d","font-size":13,"text-anchor":"end"});el("line",{x1:72,x2:80,y1:Y(z),y2:Y(z),stroke:FAINT},g);});
+  var band=el("rect",{x:90,y:Y(2),width:850,height:Y(1)-Y(2),fill:AMBER,"fill-opacity":.09,stroke:AMBER,"stroke-opacity":.35,"stroke-dasharray":"4 4",opacity:0},g);
+  var bandL=txt(g,935,Y(2)-9,"BC semi‑direct effect · clouds evaporate at 1–2 km",{class:"m","font-size":13,fill:AMBER,"text-anchor":"end",opacity:0});
+  var haze=el("g",{opacity:0},g);
+  for(var i=0;i<120;i++){var x=95+rnd(i)*840,lo=Math.max(zT(x)+.25,.4),z=lo+rnd(i+400)*(3-lo);el("circle",{cx:x,cy:Y(z),r:2.1,fill:AMBER,"fill-opacity":.6},haze);}
+  var warm=el("g",{opacity:0},g);
+  el("line",{x1:95,x2:935,y1:Y(2.6),y2:Y(2.6),stroke:AMBER,"stroke-width":2,"stroke-dasharray":"7 5"},warm);
+  txt(warm,95,Y(2.6)-10,"elevated warm layer",{class:"m","font-size":13,fill:AMBER});
+  var gp="M80,"+Y(zT(80));for(var x2=90;x2<=940;x2+=10)gp+=" L"+x2+","+Y(zT(x2)).toFixed(1);gp+=" L940,462 L80,462 Z";
+  el("path",{d:gp,fill:GROUND,stroke:"rgba(25,27,31,0.35)"},g);
+  txt(g,90,Y(0)+14,"",{});
+  var low=el("g",{opacity:0},g),lows=[];
+  [.5,.95,1.4,1.85].forEach(function(z){lows.push(el("line",{x1:90,x2:560,y1:Y(z),y2:Y(z),stroke:RAIN,"stroke-width":2,"stroke-dasharray":"18 14"},low));});
+  txt(low,92,Y(.35),"moisture from the Bay of Bengal",{class:"m","font-size":13,fill:RAIN});
+  var up=el("g",{},g),ups=[];
+  [3.15,3.65].forEach(function(z){ups.push(el("line",{x1:300,x2:900,y1:Y(z),y2:Y(z),stroke:RAIN,"stroke-width":2,"stroke-dasharray":"18 14"},up));});
+  var dry=txt(g,600,Y(4.05),"drier above the layer",{class:"m d","font-size":13,opacity:0});
+  function cloud(cx,cy){var c=el("g",{},g),i=el("g",{},c);[[-34,6,30,18],[0,-6,38,24],[34,6,30,18],[0,10,58,14]].forEach(function(q){el("ellipse",{cx:q[0],cy:q[1],rx:q[2],ry:q[3],fill:CLOUD,"fill-opacity":.88},i);});return{g:c,i:i,cx:cx,cy:cy};}
+  var cL=cloud(300,Y(1.75)),cH=cloud(820,Y(3.35));
+  var rL=[],rH=[];
+  for(var a=0;a<16;a++)rL.push(el("line",{x1:236+a*8.5,x2:236+a*8.5,y1:0,y2:0,stroke:RAIN,"stroke-linecap":"round"},g));
+  for(var b=0;b<10;b++)rH.push(el("line",{x1:780+b*8.5,x2:780+b*8.5,y1:0,y2:0,stroke:RAIN,"stroke-width":1.6,"stroke-linecap":"round"},g));
+  var lp=txt(g,300,488,"+ more rain · low terrain",{class:"m","font-size":13,fill:RAIN,"text-anchor":"middle",opacity:0});
+  var lm=txt(g,820,488,"− less rain · high terrain",{class:"m","font-size":13,fill:RAIN,"text-anchor":"middle",opacity:0});
+  var ins=el("g",{opacity:0},g);
+  txt(ins,935,52,"MORE BLACK CARBON →",{class:"m d","font-size":13,"text-anchor":"end"});
+  txt(ins,935,78,"light rain ↓   heavy rain ↑",{class:"s","font-size":20,"font-weight":600,"text-anchor":"end"});
+  function rain(arr,top,bot,n,w,t,seed){arr.forEach(function(l,k){if(k>=n){op(l,0);return;}var x=+l.getAttribute("x1"),b2=Math.min(bot,Y(zT(x))-4),len=b2-top,y=top+((t*230+rnd(k+seed)*500)%len);l.setAttribute("y1",y.toFixed(1));l.setAttribute("y2",Math.min(y+14,b2).toFixed(1));l.setAttribute("stroke-width",w);op(l,.85);});}
+  return function(t){
+   op(haze,seg(t,.3,2.6));op(warm,seg(t,1.6,3.2));
+   op(low,seg(t,4,5.4));lows.forEach(function(l){l.setAttribute("stroke-dashoffset",(-t*60).toFixed(1));});
+   op(up,.8*seg(t,0,1)*(1-seg(t,4.6,7.6)));ups.forEach(function(l){l.setAttribute("stroke-dashoffset",(-t*60).toFixed(1));});op(dry,seg(t,6,7.4));
+   var g2=seg(t,5,8),s3=seg(t,10.4,12.6);
+   cL.g.setAttribute("transform","translate("+cL.cx+","+cL.cy+") scale("+(.6+.55*g2-.12*s3).toFixed(3)+")");op(cL.g,.95-.4*s3);
+   cH.g.setAttribute("transform","translate("+cH.cx+","+cH.cy+") scale("+(1-.5*g2).toFixed(3)+")");op(cH.g,1-.45*g2);
+   rain(rL,Y(1.55),460,Math.round(8+8*g2-6*s3),(1.5+1.7*s3).toFixed(2),t,0);
+   rain(rH,Y(3.1),460,Math.round(10-7*g2),1.6,t,40);
+   op(lp,seg(t,7,8.4));op(lm,seg(t,7.3,8.7));
+   op(band,seg(t,10,11));op(bandL,seg(t,10.2,11.2));op(ins,seg(t,12.6,13.8));
+  };
+ }},
+
+/* ---------- STOTEN 2019 · urban black carbon ---------- */
+{tab:"Urban black carbon",year:"2019",journal:"Science of the Total Environment · 2019",
+ title:"Urban black carbon — source apportionment, emissions and long‑range transport over the Brahmaputra River Valley",
+ doi:"https://doi.org/10.1016/j.scitotenv.2019.07.383",D:14,
+ steps:[[0,"Real‑time aethalometer measurements at a low‑ and a high‑traffic site in Guwahati: over 85% of black carbon comes from fossil fuel — vehicles."],
+        [3.8,"Vehicular black carbon emissions grew 62% between 2011 and 2018."],
+        [7.9,"HYSPLIT shows it carried year‑round into the Brahmaputra Valley and the Himalayas — about 22 t and 1.6 t deposited a year, mostly in pre‑monsoon and monsoon rain."]],
+ build:function(g){
+  var H=[[60,"01 · SOURCE"],[380,"02 · TREND"],[700,"03 · FATE"]].map(function(q){return txt(g,q[0],60,q[1],{class:"m d","font-size":13,opacity:0});});
+  var cx=190,cy=245,r=88,C=2*Math.PI*r,G1=el("g",{opacity:0},g);
+  el("circle",{cx:cx,cy:cy,r:r,fill:"none",stroke:FAINT,"stroke-width":24},G1);
+  var arc=el("circle",{cx:cx,cy:cy,r:r,fill:"none",stroke:AMBER,"stroke-width":24,transform:"rotate(-90 "+cx+" "+cy+")","stroke-dasharray":"0 "+C},G1);
+  var big=txt(G1,cx,cy+8,"0%",{class:"s","font-size":40,"font-weight":700,"text-anchor":"middle"});
+  txt(G1,cx,cy+32,"vehicles",{class:"m d","font-size":13,"text-anchor":"middle"});
+  el("rect",{x:80,y:376,width:14,height:14,fill:AMBER},G1);txt(G1,102,388,"Fossil fuel · vehicles",{"font-size":15});
+  el("rect",{x:80,y:402,width:14,height:14,fill:FAINT},G1);txt(G1,102,414,"Biomass burning",{"font-size":15,class:"d"});
+  txt(G1,80,452,"Guwahati, 2016–17 · two sites",{class:"m d","font-size":13});
+  var base=400,k=466,G2=el("g",{opacity:0},g);
+  el("line",{x1:400,x2:640,y1:base,y2:base,stroke:"rgba(25,27,31,0.35)"},G2);
+  var B=[[430,.31,.29,.33,"2011"],[540,.495,.44,.55,"2018"]].map(function(q,i){
+   var rc=el("rect",{x:q[0],y:base,width:80,height:0,fill:i?AMBER:"rgba(226,165,92,0.45)"},G2);
+   var wk=el("g",{opacity:0},G2),xm=q[0]+40;
+   el("line",{x1:xm,x2:xm,y1:base-q[2]*k,y2:base-q[3]*k,stroke:PAPER,"stroke-width":1.5},wk);
+   [q[2],q[3]].forEach(function(v){el("line",{x1:xm-8,x2:xm+8,y1:base-v*k,y2:base-v*k,stroke:PAPER,"stroke-width":1.5},wk);});
+   txt(wk,xm,base-q[3]*k-12,q[2]+"–"+q[3]+" Gg",{class:"m","font-size":13,"text-anchor":"middle"});
+   txt(G2,xm,base+24,q[4],{class:"m d","font-size":13,"text-anchor":"middle"});
+   return{rc:rc,wk:wk,v:q[1]};
+  });
+  var pc=txt(G2,384,110,"+62%",{class:"s","font-size":36,"font-weight":700,fill:AMBER,opacity:0});
+  txt(G2,400,452,"Vehicular BC emissions, Gg/yr",{class:"m d","font-size":13});
+  var G3=el("g",{opacity:0},g);
+  var ridge=[[690,256],[718,208],[744,228],[774,168],[800,198],[830,142],[860,182],[890,152],[916,192],[944,160],[966,220]];
+  var rp="M690,262 "+ridge.map(function(p){return"L"+p[0]+","+p[1];}).join(" ")+" L966,262 Z";
+  el("path",{d:rp,fill:GROUND,stroke:"rgba(25,27,31,0.4)"},G3);
+  txt(G3,830,122,"Himalayas",{class:"m d","font-size":13,"text-anchor":"middle"});
+  el("rect",{x:690,y:318,width:276,height:32,rx:16,fill:TEAL,"fill-opacity":.16},G3);
+  txt(G3,828,374,"Brahmaputra River Valley",{class:"m d","font-size":13,"text-anchor":"middle"});
+  el("circle",{cx:730,cy:334,r:6,fill:AMBER},G3);txt(G3,730,308,"Guwahati",{"font-size":14,"text-anchor":"middle"});
+  var N=70,P=[];
+  for(var i=0;i<N;i++){var toR=i%8===0,tx,ty;if(toR){var v=ridge[1+Math.floor(rnd(i)*9)];tx=v[0]+(rnd(i+7)-.5)*10;ty=v[1]+4;}else{tx=744+rnd(i)*214;ty=325+rnd(i+11)*18;}
+   P.push({e:el("circle",{r:2.6,fill:AMBER,opacity:0},g),s:8.1+(i/N)*4.6,tx:tx,ty:ty,cy:Math.max(84,Math.min(334,ty)-60-rnd(i+23)*70)});}
+  var cv=txt(g,700,422,"0 kg",{class:"s","font-size":24,"font-weight":700,fill:AMBER,opacity:0}),ch=txt(g,850,422,"0 kg",{class:"s","font-size":24,"font-weight":700,fill:AMBER,opacity:0});
+  var cl=el("g",{opacity:0},g);txt(cl,700,444,"a year · valley",{class:"m d","font-size":13});txt(cl,850,444,"a year · Himalayas",{class:"m d","font-size":13});
+  return function(t){
+   op(H[0],seg(t,0,.6));op(H[1],seg(t,3.6,4.2));op(H[2],seg(t,7.6,8.2));
+   op(G1,seg(t,0,.5));var f=seg(t,.5,3.2);arc.setAttribute("stroke-dasharray",(C*.85*f).toFixed(1)+" "+C);big.textContent=(f>=1?">":"")+Math.round(85*f)+"%";
+   op(G2,seg(t,3.7,4.2));B.forEach(function(b,i){var h=b.v*k*seg(t,4.2+i*.9,5.8+i*.9);b.rc.setAttribute("y",base-h);b.rc.setAttribute("height",h);op(b.wk,seg(t,5.9+i*.6,6.6+i*.6));});op(pc,seg(t,6.9,7.7));
+   op(G3,seg(t,7.7,8.2));
+   P.forEach(function(q){if(t<q.s){op(q.e,0);return;}var p=ease(clamp((t-q.s)/1.5)),u=1-p,x=u*u*730+2*u*p*((730+q.tx)/2)+p*p*q.tx,y=u*u*334+2*u*p*q.cy+p*p*q.ty;q.e.setAttribute("cx",x.toFixed(1));q.e.setAttribute("cy",y.toFixed(1));q.e.setAttribute("r",p>=1?2:2.6);op(q.e,.9);});
+   var c=seg(t,9,13);op(cv,seg(t,8.8,9.3));op(ch,seg(t,8.8,9.3));op(cl,seg(t,8.8,9.3));cv.textContent=fmt(22143*c)+" kg";ch.textContent=fmt(1567*c)+" kg";
+  };
+ }}
+];
+
+var svg=document.getElementById("stage"),tabs=document.getElementById("tabs"),cap=document.getElementById("cap"),stepsEl=document.getElementById("steps");
+var reduce=window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches;
+var cur=-1,upd=null,t0=0,paused=false,pauseT=0,visible=true,lastStep=-1,HOLD=4;
+V.forEach(function(v,i){var b=document.createElement("button");b.setAttribute("role","tab");b.innerHTML='<span class="y">'+v.year+'</span>'+v.tab;b.onclick=function(){show(i);};tabs.appendChild(b);});
+function show(i){
+ cur=i;var v=V[i];
+ while(svg.firstChild)svg.removeChild(svg.firstChild);
+ upd=v.build(el("g",{},svg));
+ [].forEach.call(tabs.children,function(b,j){b.setAttribute("aria-selected",j===i?"true":"false");});
+ document.getElementById("meta").textContent=v.journal;
+ document.getElementById("title").textContent=v.title;
+ svg.setAttribute("aria-label",v.title);
+ document.getElementById("doi").href=v.doi;
+ stepsEl.innerHTML=v.steps.map(function(){return"<i></i>";}).join("");
+ lastStep=-1;restart();if(reduce)hold();
+}
+// Reduced motion (e.g. Windows "Animation effects" off): open on the finished
+// frame and play only when asked.
+function hold(){paused=true;pauseT=V[cur].D;pp.textContent="Play";}
+function restart(){t0=performance.now();pauseT=0;if(paused){paused=false;pp.textContent="Pause";}}
+var pp=document.getElementById("pp");
+pp.onclick=function(){if(paused){if(pauseT>=V[cur].D){restart();return;}t0=performance.now()-pauseT*1000;paused=false;pp.textContent="Pause";}else{pauseT=(performance.now()-t0)/1000;paused=true;pp.textContent="Play";}};
+document.getElementById("rp").onclick=restart;
+var lastTick=0;
+function frame(){requestAnimationFrame(frame);tick();}
+function tick(){
+ var now=performance.now();if(now-lastTick<12)return;
+ if(lastTick&&now-lastTick>2500&&!paused){lastTick=now;wake();return;}
+ lastTick=now;
+ var v=V[cur],t=window.__T!=null?window.__T:paused?pauseT:(now-t0)/1000;
+ if(!paused&&t>v.D+HOLD){if(reduce){hold();t=v.D;}else{t0=now;t=0;}}
+ try{upd(Math.min(t,v.D));}catch(err){if(window.console)console.error(err);}
+ var s=0;v.steps.forEach(function(st,j){if(t>=st[0])s=j;});
+ if(s!==lastStep){lastStep=s;var cs=v.steps[s][1];cap.style.opacity=0;setTimeout(function(){if(lastStep===s){cap.textContent=cs;cap.style.opacity=1;}},180);
+  [].forEach.call(stepsEl.children,function(e,j){e.className=j<=s?"on":"";});}
+}
+window.__show=show;show(0);requestAnimationFrame(frame);
+setInterval(tick,50);
+// Idle recovery: after the page sleeps, timers resume with a huge time jump and
+// half-built frames. Rebuild the current visual cleanly and start it over.
+var lastWake=performance.now();
+function wake(){if(cur<0)return;show(cur);lastTick=0;lastWake=performance.now();}
+document.addEventListener("visibilitychange",function(){if(!document.hidden)wake();});
+window.addEventListener("pageshow",function(e){if(e.persisted)wake();});
+setInterval(function(){var now=performance.now();if(!document.hidden&&lastTick&&now-lastTick>2500&&now-lastWake>2500)wake();},1000);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Surface flow over PM2.5 emission density — India</title>
+<script src="assets/d3.min.js"></script>
+<script src="assets/topojson-client.min.js"></script>
+<script src="./india-geo.js"></script>
+<script src="./wind-era5.js"></script>
+<script src="./emis-edgar.js"></script>
+<script src="./world-50m.js"></script>
+<link rel="stylesheet" href="assets/fonts.css">
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: #E9ECE7;
+    color: #191B1F;
+    font-family: 'IBM Plex Sans', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+  }
+  #wrap { position: relative; width: 100%; height: 100%; min-height: 0; }
+  canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  #base { z-index: 1; }
+  #fx { z-index: 2; }
+  .ui { position: absolute; z-index: 3; }
+  .mono { font-family: 'IBM Plex Mono', monospace; }
+  #seasons {
+    left: clamp(16px, 3vw, 34px); bottom: clamp(12px, 2.4vw, 30px);
+    display: flex; gap: 6px; flex-wrap: wrap; max-width: calc(100% - 2 * clamp(16px, 3vw, 34px));
+  }
+  #seasons button {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px; letter-spacing: 0.06em;
+    padding: 9px 14px;
+    color: rgba(25,27,31,0.68);
+    background: rgba(255,255,255,0.6);
+    border: 1px solid rgba(25,27,31,0.2);
+    border-radius: 2px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: color .18s, background .18s, border-color .18s;
+  }
+  #seasons button:hover { color: #191B1F; border-color: rgba(25,27,31,0.45); }
+  #seasons button[aria-selected="true"] {
+    color: #F5F3EE; background: #191B1F; border-color: #191B1F;
+  }
+  #caption {
+    left: clamp(16px, 3vw, 34px); top: clamp(16px, 3vw, 30px);
+    max-width: 30ch;
+  }
+  #legend {
+    right: clamp(16px, 3vw, 34px); bottom: clamp(12px, 2.4vw, 30px);
+    text-align: right;
+  }
+  #ramp {
+    height: 6px; width: 168px; margin: 8px 0 6px auto;
+    background: linear-gradient(90deg, #9CC3C0, #4F9A9C, #C9A53E, #D9762F, #B02A1E);
+  }
+  .k { font-size: 10.5px; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(25,27,31,0.55); }
+  #note {
+    right: clamp(16px, 3vw, 34px); top: clamp(16px, 3vw, 30px);
+    max-width: 26ch; text-align: right;
+  }
+  #loading {
+    position: absolute; inset: 0; z-index: 4;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: 0.14em;
+    text-transform: uppercase; color: rgba(25,27,31,0.55);
+    background: #E9ECE7; transition: opacity .5s; pointer-events: none;
+  }
+  @media (max-height: 430px) {
+    #legend { display: none; }
+    #caption { max-width: 24ch; }
+  }
+  @media (max-height: 360px) {
+    #season-desc { display: none; }
+  }
+  @media (max-width: 720px) {
+    #note { display: none; }
+    #caption { max-width: 22ch; }
+    #ramp { width: 110px; }
+    /* Small screens: keep the caption short and move the legend to the top
+       right, so neither sits on the map or on the season buttons. */
+    #season-desc { display: none; }
+    #season-title { font-size: 19px !important; }
+    #legend { top: clamp(16px, 3vw, 30px); bottom: auto; }
+    #legend .mono[style] { width: 110px !important; }
+    #seasons button { padding: 7px 10px; font-size: 11px; }
+  }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="base"></canvas>
+  <canvas id="fx"></canvas>
+
+  <div class="ui" id="caption">
+    <div class="mono k" style="color:#B4581C;margin-bottom:10px">Surface flow · PM2.5 emissions</div>
+    <div style="font-family:'Source Serif 4',serif;font-size:clamp(19px,2.2vw,27px);line-height:1.3;letter-spacing:-0.01em" id="season-title">Winter</div>
+    <div style="font-size:13.5px;line-height:1.55;color:rgba(25,27,31,0.68);margin-top:8px" id="season-desc">Stagnant north-westerlies channel down the Indo-Gangetic Plain; shallow mixing traps emissions near the surface.</div>
+  </div>
+
+  <div class="ui mono" id="note">
+    <div class="k" style="margin-bottom:6px" id="note-title">Demonstration field</div>
+    <div style="font-size:11.5px;line-height:1.5;color:rgba(25,27,31,0.55)" id="note-body">Streamlines show near-surface flow, not simulated transport.</div>
+  </div>
+
+  <div class="ui" id="seasons" role="tablist"></div>
+
+  <div class="ui" id="legend">
+    <div class="mono k">Emission density · log</div>
+    <div id="ramp"></div>
+    <div class="mono" style="font-size:10.5px;color:rgba(25,27,31,0.55);display:flex;justify-content:space-between;width:168px;margin-left:auto"><span>low</span><span>high</span></div>
+  </div>
+
+  <div id="loading">Loading geometry…</div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var BBOX = [[66.5, 5.5], [98.5, 37.5]];
+  var IBOX = null;   // lat-lon box of India's boundary, set once geometry loads
+
+  // Official India boundary (Survey of India state layer, dissolved), loaded
+  // from india-geo.js as window.INDIA_GEO. Natural Earth is used only for
+  // neighbouring countries as background context.
+  var OFFICIAL = (typeof window !== "undefined" && window.INDIA_GEO) || null;
+
+  var SEASONS = [
+    { id: "premonsoon", label: "PRE-MONSOON", title: "Pre-monsoon",
+      desc: "Winter's channelled flow breaks down and the plains go slack as a thermal low builds. Dust and biomass loading peak against weak ventilation.",
+      emit: 0.85 },
+    { id: "monsoon", label: "MONSOON", title: "Monsoon",
+      desc: "The south-westerly branch sweeps in off the Arabian Sea while the Bay branch curves up the Ganges valley into the north-east. Wet deposition scavenges much of the load.",
+      emit: 0.62 },
+    { id: "postmonsoon", label: "POST-MONSOON", title: "Post-monsoon",
+      desc: "Circulation collapses to weak north-easterlies. Residue burning in the north-west adds to an already stagnant plain.",
+      emit: 1.0 },
+    { id: "winter", label: "WINTER", title: "Winter",
+      desc: "Stagnant north-westerlies channel down the Indo-Gangetic Plain; shallow mixing traps emissions near the surface.",
+      emit: 1.15 }
+  ];
+
+  // Emission sources: [lon, lat, strength, radius_deg]
+  var SOURCES = [
+    [77.21, 28.61, 1.00, 1.5], [75.85, 30.90, 0.62, 1.1], [80.35, 26.46, 0.74, 1.0],
+    [80.95, 26.85, 0.66, 1.0], [83.00, 25.32, 0.58, 0.9], [85.14, 25.60, 0.70, 1.0],
+    [88.36, 22.57, 0.88, 1.3], [86.43, 23.80, 0.64, 0.9], [82.67, 24.20, 0.60, 0.8],
+    [82.70, 22.35, 0.55, 0.8], [72.88, 19.08, 0.82, 1.2], [72.57, 23.02, 0.68, 1.0],
+    [72.83, 21.17, 0.52, 0.8], [73.86, 18.52, 0.50, 0.8], [79.09, 21.15, 0.48, 0.9],
+    [81.63, 21.25, 0.44, 0.8], [78.47, 17.38, 0.60, 1.0], [80.27, 13.08, 0.58, 1.0],
+    [77.59, 12.97, 0.54, 0.9], [75.79, 26.91, 0.50, 0.9], [75.86, 22.72, 0.44, 0.8],
+    [85.82, 20.27, 0.40, 0.8], [91.75, 26.14, 0.46, 0.8], [76.78, 30.73, 0.42, 0.8],
+    [78.03, 27.18, 0.44, 0.8], [81.85, 25.44, 0.46, 0.8]
+  ];
+  // Extra post-monsoon residue burning (Punjab / Haryana)
+  var BURN = [[75.40, 30.60, 0.95, 1.6], [76.30, 29.90, 0.70, 1.4], [74.90, 31.30, 0.60, 1.2]];
+
+  // Fixed reference maximum across all seasons, so the colour scale stays
+  // comparable season to season instead of renormalising each frame.
+  var EREF = 0;
+  function emissionRef() {
+    if (EREF) return EREF;
+    if (EDGAR) {
+      // EDGAR carries a handful of extreme point cells (single stacks, flares)
+      // that are ~2 orders above urban background. Normalising to the max
+      // renders the whole subcontinent black, so reference a high percentile
+      // of the non-zero population instead and let the top clip.
+      var vals = [], k, arr, key;
+      for (key in EDGAR.seasons) {
+        arr = EDGAR.seasons[key];
+        for (k = 0; k < arr.length; k += 3) if (arr[k] > 0) vals.push(arr[k]);
+      }
+      vals.sort(function (a, b) { return a - b; });
+      EREF = vals.length
+        ? vals[Math.min(vals.length - 1, Math.floor(vals.length * 0.995))] / EDGAR.quant
+        : 1;
+      if (!EREF) EREF = 1;
+      return EREF;
+    }
+    var lo, la, n, e;
+    for (n = 0; n < SEASONS.length; n++) {
+      for (lo = BBOX[0][0]; lo <= BBOX[1][0]; lo += 0.4) {
+        for (la = BBOX[0][1]; la <= BBOX[1][1]; la += 0.4) {
+          e = emission(SEASONS[n].id, lo, la);
+          if (e > EREF) EREF = e;
+        }
+      }
+    }
+    return EREF;
+  }
+
+  // Emissions span orders of magnitude, so a linear ramp renders everything
+  // outside the hotspots as effectively zero. Log-scale it instead.
+  function logNorm(e) {
+    if (e <= 0) return 0;
+    var ref = emissionRef(), e0 = ref * (EDGAR ? 0.004 : 0.010);
+    var t = Math.log1p(e / e0) / Math.log1p(ref / e0);
+    return t < 0 ? 0 : t > 1 ? 1 : t;
+  }
+
+  var g = function (x, mu, s) { var d = (x - mu) / s; return Math.exp(-d * d); };
+
+  // Analytic 10 m wind (m/s) per season — fallback when no ERA5 file is present
+  function windAnalytic(season, lon, lat, out) {
+    var u = 0, v = 0;
+    if (season === "premonsoon") {
+      u = 5.2 + 3.4 * g(lat, 29, 7) - 1.2 * g(lat, 12, 6);
+      v = 0.8 + 2.4 * g(lat, 15, 9) * g(lon, 78, 12) + 1.4 * g(lat, 30, 7) * g(lon, 74, 10);
+    } else if (season === "monsoon") {
+      u = 8.6 * g(lat, 15, 11) + 6.2 * g(lat, 26, 7) + 2.0;
+      v = 6.4 * g(lat, 13, 10) * g(lon, 73, 13) + 5.4 * g(lon, 88, 9) * g(lat, 19, 9)
+        + 3.0 * g(lon, 92, 6) * g(lat, 26, 5);
+    } else if (season === "postmonsoon") {
+      u = -(2.6 + 1.6 * g(lat, 27, 8)) - 1.2 * g(lat, 13, 7);
+      v = -(1.6 + 1.2 * g(lat, 26, 8)) - 0.8 * g(lat, 14, 8);
+      u *= 0.9; v *= 0.9;
+    } else {
+      u = 3.6 + 3.6 * g(lat, 28, 6) - 3.2 * g(lat, 13, 6);
+      v = -(1.4 + 1.8 * g(lat, 29, 6)) - 0.7 * g(lat, 14, 7);
+      u *= 0.72; v *= 0.72;
+    }
+    out[0] = u; out[1] = v;
+  }
+
+  // ERA5 seasonal means, if wind-era5.js was loaded. Bilinear sampling on the
+  // file's own regular lat/lon grid (stored south -> north by the exporter).
+  var ERA5 = (typeof window !== "undefined" && window.WIND_ERA5) || null;
+
+  function windERA5(season, lon, lat, out) {
+    var s = ERA5.seasons[season];
+    if (!s) { windAnalytic(season, lon, lat, out); return; }
+    var fx = (lon - ERA5.lon0) / ERA5.dlon;
+    var fy = (lat - ERA5.lat0) / ERA5.dlat;
+    // The reanalysis grid sits a fraction of a cell inside the map's bbox, so
+    // clamp to the edge rather than returning zero — otherwise particles stall
+    // in a dead margin around the whole domain.
+    if (fx < 0) fx = 0; else if (fx > ERA5.nx - 1) fx = ERA5.nx - 1;
+    if (fy < 0) fy = 0; else if (fy > ERA5.ny - 1) fy = ERA5.ny - 1;
+    var i0 = Math.floor(fx), j0 = Math.floor(fy);
+    var i1 = Math.min(i0 + 1, ERA5.nx - 1), j1 = Math.min(j0 + 1, ERA5.ny - 1);
+    var tx = fx - i0, ty = fy - j0;
+    var nx = ERA5.nx, k = 1 / ERA5.meta.scale;
+    var a = j0 * nx + i0, b = j0 * nx + i1, c = j1 * nx + i0, d = j1 * nx + i1;
+    var u = (s.u[a] * (1 - tx) + s.u[b] * tx) * (1 - ty) + (s.u[c] * (1 - tx) + s.u[d] * tx) * ty;
+    var v = (s.v[a] * (1 - tx) + s.v[b] * tx) * (1 - ty) + (s.v[c] * (1 - tx) + s.v[d] * tx) * ty;
+    out[0] = u * k; out[1] = v * k;
+  }
+
+  var wind = ERA5 ? windERA5 : windAnalytic;
+
+  // Real EDGARv8.1 monthly anthropogenic PM2.5 (all sectors, `sum`), seasonally
+  // averaged and exported by export_edgar_pm25.py. Bilinear on the file's own
+  // regular grid, stored south -> north like the wind file.
+  var EDGAR = (typeof window !== "undefined" && window.EMIS_EDGAR) || null;
+
+  function emissionEDGAR(season, lon, lat) {
+    var q = EDGAR.seasons[season];
+    if (!q) return 0;
+    var fx = (lon - EDGAR.lon0) / EDGAR.dlon;
+    var fy = (lat - EDGAR.lat0) / EDGAR.dlat;
+    if (fx < 0 || fy < 0 || fx > EDGAR.nx - 1 || fy > EDGAR.ny - 1) return 0;
+    var i0 = fx | 0, j0 = fy | 0;
+    var i1 = i0 + 1 < EDGAR.nx ? i0 + 1 : i0;
+    var j1 = j0 + 1 < EDGAR.ny ? j0 + 1 : j0;
+    var tx = fx - i0, ty = fy - j0;
+    var a = q[j0 * EDGAR.nx + i0], b = q[j0 * EDGAR.nx + i1];
+    var c = q[j1 * EDGAR.nx + i0], d = q[j1 * EDGAR.nx + i1];
+    var v = (a * (1 - tx) + b * tx) * (1 - ty) + (c * (1 - tx) + d * tx) * ty;
+    return v / EDGAR.quant;   // 0..1 of the dataset's all-season maximum
+  }
+
+  function emissionSynthetic(season, lon, lat) {
+    var e = 0, i, s, dx, dy, r;
+    for (i = 0; i < SOURCES.length; i++) {
+      s = SOURCES[i];
+      dx = (lon - s[0]) / s[3]; dy = (lat - s[1]) / (s[3] * 0.85);
+      e += s[2] * Math.exp(-(dx * dx + dy * dy));
+    }
+    if (season === "postmonsoon") {
+      for (i = 0; i < BURN.length; i++) {
+        s = BURN[i];
+        dx = (lon - s[0]) / s[3]; dy = (lat - s[1]) / (s[3] * 0.85);
+        e += s[2] * Math.exp(-(dx * dx + dy * dy));
+      }
+    }
+    // Broad Indo-Gangetic Plain enhancement along the valley axis
+    r = (lat - (30.5 - 0.30 * (lon - 75))) / 3.1;
+    e += 0.42 * Math.exp(-r * r) * g(lon, 82, 12);
+    var m = SEASONS.filter(function (q) { return q.id === season; })[0].emit;
+    return e * m;
+  }
+
+  var emission = EDGAR ? emissionEDGAR : emissionSynthetic;
+
+  var RAMP = [
+    [0.00, [156, 195, 192]], [0.16, [96, 160, 162]], [0.36, [46, 126, 134]],
+    [0.58, [201, 165, 62]], [0.78, [217, 118, 47]], [1.00, [176, 42, 30]]
+  ];
+  function ramp(t) {
+    t = t < 0 ? 0 : t > 1 ? 1 : t;
+    for (var i = 1; i < RAMP.length; i++) {
+      if (t <= RAMP[i][0]) {
+        var a = RAMP[i - 1], b = RAMP[i];
+        var f = (t - a[0]) / (b[0] - a[0]);
+        return [
+          Math.round(a[1][0] + f * (b[1][0] - a[1][0])),
+          Math.round(a[1][1] + f * (b[1][1] - a[1][1])),
+          Math.round(a[1][2] + f * (b[1][2] - a[1][2]))
+        ];
+      }
+    }
+    return RAMP[RAMP.length - 1][1];
+  }
+
+  var baseC = document.getElementById("base"),
+      fxC = document.getElementById("fx"),
+      wrap = document.getElementById("wrap"),
+      bctx = baseC.getContext("2d"),
+      fctx = fxC.getContext("2d");
+
+  var W = 0, H = 0, dpr = 1, projection = null, path = null;
+  var land = null, india = null, others = null, statesGeo = null;
+
+  // Emission colour must only be carried where emissions exist. The raster is
+  // clipped by canvas, but particles sample emission() directly — which is an
+  // unclipped gaussian sum, so a source's tail reaches across the border.
+  // Rasterise the boundary once per layout in SCREEN space: O(1) per particle,
+  // no per-point geoContains (which costs ~0.45 ms against this 145-ring
+  // polygon — unusable at ~1500 particles per frame).
+  var MSK_S = 2;              // screen px per mask cell
+  var mskC = document.createElement("canvas"), mskX = mskC.getContext("2d");
+  var MASK = null, MSK_W = 0, MSK_H = 0;
+
+  function buildMask() {
+    if (!projection || !india) { MASK = null; return; }
+    MSK_W = Math.max(1, Math.ceil(W / MSK_S));
+    MSK_H = Math.max(1, Math.ceil(H / MSK_S));
+    mskC.width = MSK_W; mskC.height = MSK_H;
+    mskX.setTransform(1 / MSK_S, 0, 0, 1 / MSK_S, 0, 0);
+    mskX.clearRect(0, 0, W, H);
+    mskX.fillStyle = "#fff";
+    var p = d3.geoPath(projection, mskX);
+    mskX.beginPath(); p(india); mskX.fill();
+    var d = mskX.getImageData(0, 0, MSK_W, MSK_H).data;
+    MASK = new Uint8Array(MSK_W * MSK_H);
+    // High threshold: antialiased edge pixels are treated as OUTSIDE, so the
+    // bias is against attributing emissions beyond the border.
+    for (var i = 0, n = MASK.length; i < n; i++) MASK[i] = d[i * 4 + 3] > 200 ? 1 : 0;
+  }
+
+  function inBox(lon, lat) {
+    var b = IBOX || BBOX;
+    return lon >= b[0][0] && lon <= b[1][0] &&
+           lat >= b[0][1] && lat <= b[1][1];
+  }
+
+  function insideMask(px, py) {
+    if (!MASK) return true;
+    var i = (px / MSK_S) | 0, j = (py / MSK_S) | 0;
+    if (i < 0 || j < 0 || i >= MSK_W || j >= MSK_H) return false;
+    return MASK[j * MSK_W + i] === 1;
+  }
+  var season = "winter";
+  var particles = [], N = 0, raf = null;
+  var uv = [0, 0];
+
+  function resize() {
+    var r = wrap.getBoundingClientRect();
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    W = Math.max(240, Math.round(r.width));
+    H = Math.max(240, Math.round(r.height));
+    [baseC, fxC].forEach(function (c) {
+      c.width = Math.round(W * dpr); c.height = Math.round(H * dpr);
+    });
+    bctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    fctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    if (land) { setupProjection(); buildMask(); drawBase(); seed(); }
+  }
+
+  function setupProjection() {
+    projection = d3.geoMercator();
+    var box = { type: "MultiPoint", coordinates: [
+      [BBOX[0][0], BBOX[0][1]], [BBOX[1][0], BBOX[0][1]],
+      [BBOX[1][0], BBOX[1][1]], [BBOX[0][0], BBOX[1][1]]
+    ] };
+    projection.fitExtent([[W * 0.06, H * 0.05], [W * 0.94, H * 0.95]], box);
+    path = d3.geoPath(projection, bctx);
+  }
+
+  function drawEmissionRaster() {
+    var step = 5, cols = Math.ceil(W / step), rows = Math.ceil(H / step);
+    var off = document.createElement("canvas");
+    off.width = cols; off.height = rows;
+    var octx = off.getContext("2d");
+    var img = octx.createImageData(cols, rows);
+    var d = img.data, i, j, k = 0, ll, e, c, a;
+    for (j = 0; j < rows; j++) {
+      for (i = 0; i < cols; i++) {
+        ll = projection.invert([i * step + step / 2, j * step + step / 2]);
+        if (!ll) { k += 4; continue; }
+        e = emission(season, ll[0], ll[1]);
+        a = logNorm(e);
+        c = ramp(a);
+        d[k] = c[0]; d[k + 1] = c[1]; d[k + 2] = c[2];
+        d[k + 3] = Math.round(242 * Math.pow(a, 0.92));
+        k += 4;
+      }
+    }
+    octx.putImageData(img, 0, 0);
+
+    bctx.save();
+    bctx.beginPath();
+    path(india);
+    bctx.clip();
+    bctx.filter = "blur(7px)";
+    bctx.imageSmoothingEnabled = true;
+    bctx.drawImage(off, 0, 0, W, H);
+    bctx.filter = "none";
+    bctx.restore();
+  }
+
+  function drawBase() {
+    bctx.clearRect(0, 0, W, H);
+    bctx.fillStyle = "#E9ECE7";
+    bctx.fillRect(0, 0, W, H);
+
+    // graticule
+    bctx.save();
+    bctx.strokeStyle = "rgba(25,27,31,0.07)";
+    bctx.lineWidth = 1;
+    bctx.beginPath();
+    path(d3.geoGraticule().step([5, 5])());
+    bctx.stroke();
+    bctx.restore();
+
+    // neighbouring countries, faint
+    bctx.save();
+    bctx.fillStyle = "rgba(25,27,31,0.035)";
+    bctx.strokeStyle = "rgba(25,27,31,0.22)";
+    bctx.lineWidth = 0.8;
+    bctx.beginPath(); path(others); bctx.fill();
+    bctx.beginPath(); path(others); bctx.stroke();
+    bctx.restore();
+
+    // India base — opaque first so neighbouring line-of-control strokes
+    // never show through inside Indian territory
+    bctx.save();
+    bctx.fillStyle = "#E9ECE7";
+    bctx.beginPath(); path(india); bctx.fill();
+    bctx.fillStyle = "rgba(255,255,255,0.65)";
+    bctx.beginPath(); path(india); bctx.fill();
+    bctx.restore();
+
+    drawEmissionRaster();
+
+    // state boundaries, faint, clipped to India
+    if (statesGeo) {
+      bctx.save();
+      bctx.beginPath(); path(india); bctx.clip();
+      bctx.strokeStyle = "rgba(25,27,31,0.22)";
+      bctx.lineWidth = 0.7;
+      bctx.beginPath(); path(statesGeo); bctx.stroke();
+      bctx.restore();
+    }
+
+    // India coastline on top
+    bctx.save();
+    bctx.strokeStyle = "rgba(25,27,31,0.62)";
+    bctx.lineWidth = 1.1;
+    bctx.beginPath(); path(india); bctx.stroke();
+    bctx.restore();
+  }
+
+  function spawn(p) {
+    // bias spawning upwind and over the subcontinent
+    var lon = BBOX[0][0] + Math.random() * (BBOX[1][0] - BBOX[0][0]);
+    var lat = BBOX[0][1] + Math.random() * (BBOX[1][1] - BBOX[0][1]);
+    p.lon = lon; p.lat = lat;
+    p.age = 0;
+    p.life = 70 + Math.random() * 110;
+    var xy = projection([lon, lat]);
+    p.px = xy ? xy[0] : -99; p.py = xy ? xy[1] : -99;
+  }
+
+  function seed() {
+    N = Math.round(Math.min(3000, Math.max(900, (W * H) / 380)));
+    particles = new Array(N);
+    for (var i = 0; i < N; i++) { particles[i] = {}; spawn(particles[i]); particles[i].age = Math.random() * 120; }
+  }
+
+  var DT = ERA5 ? 5200 : 2100;
+
+  // Seasonal-mean winds span ~0.4 m/s over the stagnant IGP to ~9 m/s over the
+  // monsoon Arabian Sea. Advecting at true speed leaves the land — where the
+  // emissions are — visually static. Compress the SPEED for display while
+  // leaving DIRECTION untouched, so relative differences still read.
+  var SPD_GAMMA = ERA5 ? 0.62 : 1;
+  function displayScale(spd) {
+    if (SPD_GAMMA === 1 || spd <= 0) return 1;
+    return Math.pow(spd, SPD_GAMMA) / spd;
+  }
+
+  // Strokes are batched into intensity bins: one path per bin instead of one
+  // stroke() per particle keeps the frame cheap enough to stay smooth.
+  var NB = 14, BINS = [];
+  for (var bi = 0; bi < NB; bi++) BINS.push([]);
+  var lastStep = 0;
+  function step(now) {
+    raf = requestAnimationFrame(step);
+    if (document.hidden) return;
+    lastAlive = performance.now();
+    now = now || performance.now();
+    if (now - lastStep < 14) return;      // cap ~60 fps on high-refresh screens
+    lastStep = now;
+    try { advance(); } catch (err) { if (window.console) console.error(err); }
+  }
+
+  function advance() {
+    fctx.globalCompositeOperation = "destination-out";
+    fctx.fillStyle = "rgba(0,0,0,0.10)";
+    fctx.fillRect(0, 0, W, H);
+    fctx.globalCompositeOperation = "source-over";
+
+    var b, i;
+    for (b = 0; b < NB; b++) BINS[b].length = 0;
+
+    for (i = 0; i < N; i++) {
+      var p = particles[i];
+      wind(season, p.lon, p.lat, uv);
+      var spd = Math.sqrt(uv[0] * uv[0] + uv[1] * uv[1]);
+      var ds = displayScale(spd);
+      var coslat = Math.cos(p.lat * Math.PI / 180);
+      if (coslat < 0.2) coslat = 0.2;
+      var nlon = p.lon + (uv[0] * ds * DT) / (111320 * coslat);
+      var nlat = p.lat + (uv[1] * ds * DT) / 110540;
+
+      var xy = projection([nlon, nlat]);
+      if (!xy || nlon < BBOX[0][0] - 1 || nlon > BBOX[1][0] + 1 ||
+          nlat < BBOX[0][1] - 1 || nlat > BBOX[1][1] + 1 || p.age > p.life) {
+        spawn(p); continue;
+      }
+
+      var t = inBox(p.lon, p.lat) ? logNorm(emission(season, p.lon, p.lat)) : 0;
+      // Particles carry the field only where there is real emission — without a
+      // floor the log scale lifts near-zero values into a visible haze.
+      var tp = t < 0.30 ? 0 : (t - 0.30) / 0.70;
+      var k = Math.min(NB - 1, Math.round(tp * (NB - 1)));
+      BINS[k].push(p.px, p.py, xy[0], xy[1]);
+
+      p.lon = nlon; p.lat = nlat; p.px = xy[0]; p.py = xy[1];
+      p.age += 1 + spd * 0.05;
+    }
+
+    for (b = 0; b < NB; b++) {
+      var seg = BINS[b];
+      if (!seg.length) continue;
+      var tq = b / (NB - 1), c = b === 0 ? [70, 76, 84] : ramp(Math.max(0.36, tq)).map(function (v) { return Math.round(v * 0.72); });
+      fctx.strokeStyle = "rgba(" + c[0] + "," + c[1] + "," + c[2] + "," + (b === 0 ? 0.2 : 0.34 + 0.56 * tq).toFixed(3) + ")";
+      fctx.lineWidth = 0.7 + 1.5 * tq;
+      fctx.beginPath();
+      for (i = 0; i < seg.length; i += 4) { fctx.moveTo(seg[i], seg[i + 1]); fctx.lineTo(seg[i + 2], seg[i + 3]); }
+      fctx.stroke();
+    }
+  }
+
+  function setSeason(id) {
+    season = id;
+    var s = SEASONS.filter(function (q) { return q.id === id; })[0];
+    document.getElementById("season-title").textContent = s.title;
+    document.getElementById("season-desc").textContent = s.desc;
+    Array.prototype.forEach.call(document.querySelectorAll("#seasons button"), function (b) {
+      b.setAttribute("aria-selected", String(b.dataset.id === id));
+    });
+    drawBase();
+    fctx.clearRect(0, 0, W, H);
+    seed();
+  }
+
+  if (ERA5) {
+    var nt = document.getElementById("note-title"), nb = document.getElementById("note-body");
+    if (nt) nt.textContent = "ERA5 " + (ERA5.meta.year || "");
+    if (nb) nb.textContent = "Seasonal-mean 10 m wind from ERA5 reanalysis. Streamlines show near-surface flow, not simulated transport.";
+  }
+  if (EDGAR) {
+    var lg = document.querySelector("#legend .k");
+    if (lg) lg.textContent = "EDGAR PM2.5 \u00b7 log";
+  }
+
+  var tabs = document.getElementById("seasons");  SEASONS.forEach(function (s) {
+    var b = document.createElement("button");
+    b.type = "button";
+    b.textContent = s.label;
+    b.dataset.id = s.id;
+    b.setAttribute("role", "tab");
+    b.setAttribute("aria-selected", String(s.id === season));
+    b.addEventListener("click", function () { setSeason(s.id); });
+    tabs.appendChild(b);
+  });
+
+  // World outlines ship with the page (world-50m.js → window.WORLD_TOPO): the
+  // hosted page cannot fetch from a CDN at runtime.
+  (window.WORLD_TOPO ? Promise.resolve(window.WORLD_TOPO)
+    : d3.json("https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/countries-50m.json")).then(function (topo) {
+    var fc = topojson.feature(topo, topo.objects.countries);
+    // India's official extent: the Natural Earth "India" polygon plus Siachen.
+    // Territories north of the line of control are absent from this dataset —
+    // see INDIA_GEOJSON_URL below to substitute an official boundary.
+    var IN = ["India", "Siachen Glacier"];
+    land = fc;
+    india = { type: "FeatureCollection", features: fc.features.filter(function (f) { return IN.indexOf(f.properties.name) >= 0; }) };
+    others = { type: "FeatureCollection", features: fc.features.filter(function (f) { return IN.indexOf(f.properties.name) < 0; }) };
+
+    if (OFFICIAL && OFFICIAL.boundary) {
+      india = { type: "Feature", properties: { name: "India" },
+        geometry: { type: "MultiPolygon", coordinates: OFFICIAL.boundary } };
+      if (OFFICIAL.states) {
+        statesGeo = { type: "Feature", properties: {},
+          geometry: { type: "MultiLineString", coordinates: OFFICIAL.states } };
+      }
+    }
+    // Streamlines are carried inside the lat-lon box of India's own boundary,
+    // not the wider map domain.
+    var gb = d3.geoBounds(india);
+    IBOX = [[gb[0][0], gb[0][1]], [gb[1][0], gb[1][1]]];
+  }).then(function () {
+    resize();
+    var l = document.getElementById("loading");
+    l.style.opacity = "0";
+    setTimeout(function () { l.remove(); }, 520);
+    if (raf) cancelAnimationFrame(raf);
+    step();
+  }).catch(function (err) {
+    document.getElementById("loading").textContent = "Could not load map geometry";
+    console.error(err);
+  });
+
+  var rt = null;
+  function scheduleResize() {
+    clearTimeout(rt);
+    rt = setTimeout(resize, 120);
+  }
+  // The iframe element is resized by the PARENT document's layout, which never
+  // fires a resize event in this window — observe the element itself.
+  if (typeof ResizeObserver !== "undefined") {
+    new ResizeObserver(scheduleResize).observe(wrap);
+  }
+  window.addEventListener("resize", scheduleResize);
+
+  // Idle recovery. Browsers throttle or freeze background/offscreen frames and
+  // may discard 2D canvas backing stores; on wake the trails canvas holds a
+  // stale half-faded frame. Rebuild both canvases and restart the loop.
+  var lastAlive = performance.now(), hiddenAt = 0;
+  function wake() {
+    if (!land) return;
+    lastStep = 0;
+    resize();
+    if (raf) cancelAnimationFrame(raf);
+    raf = requestAnimationFrame(step);
+    lastAlive = performance.now();
+  }
+  document.addEventListener("visibilitychange", function () {
+    if (document.hidden) { hiddenAt = performance.now(); return; }
+    wake();
+  });
+  window.addEventListener("pageshow", function (e) { if (e.persisted) wake(); });
+  window.addEventListener("focus", function () { if (performance.now() - lastAlive > 1500) wake(); });
+  [baseC, fxC].forEach(function (c) {
+    c.addEventListener("contextlost", function (e) { e.preventDefault(); });
+    c.addEventListener("contextrestored", wake);
+  });
+  // Watchdog: if frames stopped arriving while visible (frozen iframe), revive.
+  setInterval(function () {
+    if (document.hidden || !land) return;
+    if (performance.now() - lastAlive > 2000) wake();
+  }, 1000);
+})();
+</script>
+</body>
+</html>
