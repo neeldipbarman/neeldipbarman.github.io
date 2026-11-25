@@ -36,7 +36,7 @@
     font-family: 'IBM Plex Mono', monospace;
     font-size: 12px; letter-spacing: 0.06em;
     padding: 9px 14px;
-    color: rgba(25,27,31,0.68);
+    color: rgba(25,27,31,0.8);
     background: rgba(255,255,255,0.6);
     border: 1px solid rgba(25,27,31,0.2);
     border-radius: 2px;
@@ -60,7 +60,7 @@
     height: 6px; width: 168px; margin: 8px 0 6px auto;
     background: linear-gradient(90deg, #9CC3C0, #4F9A9C, #C9A53E, #D9762F, #B02A1E);
   }
-  .k { font-size: 10.5px; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(25,27,31,0.55); }
+  .k { font-size: 11.5px; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(25,27,31,0.7); }
   #note {
     right: clamp(16px, 3vw, 34px); top: clamp(16px, 3vw, 30px);
     max-width: 26ch; text-align: right;
@@ -69,7 +69,7 @@
     position: absolute; inset: 0; z-index: 4;
     display: flex; align-items: center; justify-content: center;
     font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: 0.14em;
-    text-transform: uppercase; color: rgba(25,27,31,0.55);
+    text-transform: uppercase; color: rgba(25,27,31,0.7);
     background: #E9ECE7; transition: opacity .5s; pointer-events: none;
   }
   @media (max-height: 430px) {
@@ -89,7 +89,7 @@
     #season-title { font-size: 19px !important; }
     #legend { top: clamp(16px, 3vw, 30px); bottom: auto; }
     #legend .mono[style] { width: 110px !important; }
-    #seasons button { padding: 7px 10px; font-size: 11px; }
+    #seasons button { padding: 7px 10px; font-size: 12px; }
   }
 </style>
 </head>
@@ -101,12 +101,12 @@
   <div class="ui" id="caption">
     <div class="mono k" style="color:#B4581C;margin-bottom:10px">Surface flow · PM2.5 emissions</div>
     <div style="font-family:'Source Serif 4',serif;font-size:clamp(19px,2.2vw,27px);line-height:1.3;letter-spacing:-0.01em" id="season-title">Pre-monsoon</div>
-    <div style="font-size:13.5px;line-height:1.55;color:rgba(25,27,31,0.68);margin-top:8px" id="season-desc">Winter's channelled flow breaks down and the plains go slack as a thermal low builds. Dust and biomass loading peak against weak ventilation.</div>
+    <div style="font-size:13.5px;line-height:1.55;color:rgba(25,27,31,0.8);margin-top:8px" id="season-desc">Winter's channelled flow breaks down and the plains go slack as a thermal low builds. Dust and biomass loading peak against weak ventilation.</div>
   </div>
 
   <div class="ui mono" id="note">
     <div class="k" style="margin-bottom:6px" id="note-title">Demonstration field</div>
-    <div style="font-size:11.5px;line-height:1.5;color:rgba(25,27,31,0.55)" id="note-body">Streamlines show near-surface flow, not simulated transport.</div>
+    <div style="font-size:12.5px;line-height:1.5;color:rgba(25,27,31,0.7)" id="note-body">Streamlines show near-surface flow, not simulated transport.</div>
   </div>
 
   <div class="ui" id="seasons" role="tablist"></div>
@@ -114,7 +114,7 @@
   <div class="ui" id="legend">
     <div class="mono k">Emission density · log</div>
     <div id="ramp"></div>
-    <div class="mono" style="font-size:10.5px;color:rgba(25,27,31,0.55);display:flex;justify-content:space-between;width:168px;margin-left:auto"><span>low</span><span>high</span></div>
+    <div class="mono" style="font-size:11.5px;color:rgba(25,27,31,0.7);display:flex;justify-content:space-between;width:168px;margin-left:auto"><span>low</span><span>high</span></div>
   </div>
 
   <div id="loading">Loading geometry…</div>
@@ -472,7 +472,7 @@
 
     // India coastline on top
     bctx.save();
-    bctx.strokeStyle = "rgba(25,27,31,0.62)";
+    bctx.strokeStyle = "rgba(25,27,31,0.74)";
     bctx.lineWidth = 1.1;
     bctx.beginPath(); path(india); bctx.stroke();
     bctx.restore();
