@@ -4,7 +4,7 @@
    dust          - larger angular tan grains that tumble slowly
    sulfate       - small light droplets with a faint rim
    sea salt      - small white cubic crystals
-   Pauses off-screen, respects reduced motion, visitor can pause. */
+   Pauses off-screen and stays still for visitors who turn animations off. */
 (function () {
 var tries = 0;
 function start() {
@@ -13,13 +13,9 @@ function start() {
   if (hero.querySelector('.hero-air')) return;
   var c = document.createElement('canvas'); c.className = 'hero-air'; c.setAttribute('aria-hidden', 'true');
   hero.insertBefore(c, hero.firstChild);
-  var bar = document.createElement('div'); bar.className = 'air-bar';
-  var btn = document.createElement('button'); btn.type = 'button'; btn.className = 'air-toggle';
-  bar.appendChild(btn); hero.appendChild(bar);
   var ctx = c.getContext('2d'), W = 0, H = 0, P = [], HZ = [], t = 0, raf = 0, visible = true;
   var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
   var paused = reduce, R = Math.random;
-  function label() { btn.textContent = paused ? 'Play motion' : 'Pause motion'; }
   var TYPES = [['bc', .27], ['brc', .17], ['dust', .16], ['so4', .27], ['salt', .13]];
   function pick() { var u = R(), a = 0; for (var i = 0; i < TYPES.length; i++) { a += TYPES[i][1]; if (u < a) return TYPES[i][0]; } return 'so4'; }
   function mk(anywhere) {
@@ -81,11 +77,10 @@ function start() {
   }
   function loop(ts) { raf = 0; if (paused || !visible || document.hidden) return; t = ts; draw(true); raf = requestAnimationFrame(loop); }
   function kick() { if (!raf && !paused && visible && !document.hidden) raf = requestAnimationFrame(loop); }
-  btn.addEventListener('click', function () { paused = !paused; label(); kick(); });
   if ('IntersectionObserver' in window) new IntersectionObserver(function (e) { visible = e[0].isIntersecting; kick(); }).observe(hero);
   document.addEventListener('visibilitychange', kick);
   var rt; window.addEventListener('resize', function () { clearTimeout(rt); rt = setTimeout(size, 150); });
-  label(); size(); kick();
+  size(); kick();
 }
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
 })();
