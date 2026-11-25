@@ -14,7 +14,6 @@ function start() {
   var c = document.createElement('canvas'); c.className = 'hero-air'; c.setAttribute('aria-hidden', 'true');
   hero.insertBefore(c, hero.firstChild);
   var bar = document.createElement('div'); bar.className = 'air-bar';
-  bar.innerHTML = '<div class="air-legend" aria-hidden="true"><span><svg viewBox="0 0 14 10" width="16" height="11"><g fill="#1E1F22"><circle cx="5" cy="5" r="1.5"/><circle cx="7.6" cy="4.2" r="1.5"/><circle cx="6.6" cy="6.9" r="1.5"/><circle cx="3.4" cy="7.2" r="1.5"/><circle cx="9.9" cy="5.6" r="1.5"/><circle cx="8.4" cy="2.2" r="1.5"/><circle cx="2.6" cy="4.4" r="1.5"/></g></svg>Black carbon</span><span><svg viewBox="0 0 10 10" width="11" height="11"><circle cx="5" cy="5" r="3.6" fill="#8A5A2B" fill-opacity=".85"/></svg>Brown carbon</span><span><svg viewBox="0 0 12 12" width="12" height="12"><polygon points="2,4 6,1.5 10.5,3.5 9.5,9 4.5,10.5 1.5,7.5" fill="#C29A62"/></svg>Dust</span><span><svg viewBox="0 0 10 10" width="11" height="11"><circle cx="5" cy="5" r="3.6" fill="#FFFFFF" fill-opacity=".8" stroke="#263F5A" stroke-opacity=".55" stroke-width="1"/></svg>Sulfate</span><span><svg viewBox="0 0 10 10" width="11" height="11"><rect x="2" y="2" width="6" height="6" fill="#FFFFFF" stroke="#7FA3B8" stroke-width="1" transform="rotate(12 5 5)"/></svg>Sea salt</span></div>';
   var btn = document.createElement('button'); btn.type = 'button'; btn.className = 'air-toggle';
   bar.appendChild(btn); hero.appendChild(bar);
   var ctx = c.getContext('2d'), W = 0, H = 0, P = [], HZ = [], t = 0, raf = 0, visible = true;
