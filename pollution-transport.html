@@ -100,8 +100,8 @@
 
   <div class="ui" id="caption">
     <div class="mono k" style="color:#B4581C;margin-bottom:10px">Surface flow · PM2.5 emissions</div>
-    <div style="font-family:'Source Serif 4',serif;font-size:clamp(19px,2.2vw,27px);line-height:1.3;letter-spacing:-0.01em" id="season-title">Winter</div>
-    <div style="font-size:13.5px;line-height:1.55;color:rgba(25,27,31,0.68);margin-top:8px" id="season-desc">Stagnant north-westerlies channel down the Indo-Gangetic Plain; shallow mixing traps emissions near the surface.</div>
+    <div style="font-family:'Source Serif 4',serif;font-size:clamp(19px,2.2vw,27px);line-height:1.3;letter-spacing:-0.01em" id="season-title">Pre-monsoon</div>
+    <div style="font-size:13.5px;line-height:1.55;color:rgba(25,27,31,0.68);margin-top:8px" id="season-desc">Winter's channelled flow breaks down and the plains go slack as a thermal low builds. Dust and biomass loading peak against weak ventilation.</div>
   </div>
 
   <div class="ui mono" id="note">
@@ -367,7 +367,7 @@
     if (i < 0 || j < 0 || i >= MSK_W || j >= MSK_H) return false;
     return MASK[j * MSK_W + i] === 1;
   }
-  var season = "winter";
+  var season = "premonsoon";
   var particles = [], N = 0, raf = null;
   var uv = [0, 0];
 
